@@ -1,0 +1,1 @@
+# Dense embeddings service package
