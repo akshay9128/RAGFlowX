@@ -22,5 +22,9 @@ class Settings(BaseSettings):
         extra="ignore"
     )
 
+    def model_post_init(self, __context):
+        self.UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+        self.DATA_DIR.mkdir(parents=True, exist_ok=True)
+
 
 settings = Settings()

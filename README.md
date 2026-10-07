@@ -4,8 +4,10 @@ Production-oriented real-time web application for Retrieval-Augmented Generation
 
 ## 🚀 Features & Architecture
 
-- **Document Ingestion & Parsing**: PDF upload, validation, page-level text extraction with metadata preservation.
-- **Text Chunking**: Configurable semantic chunking with overlap and document/page traceability.
+- **Document Ingestion & Parsing**: PDF/TXT/MD upload, validation, page-level text extraction with `pypdf`, metadata preservation (`document_id`, `filename`, `page_number`, `source`).
+- **Document Store**: Persistent storage for processed document metadata and page text.
+- **Text Chunking**: Configurable semantic recursive chunking (`chunk_size`, `chunk_overlap`) with paragraph/sentence boundary splitting and complete metadata preservation (`chunk_id`, `document_id`, `filename`, `page_number`, `chunk_index`, `source`).
+- **Chunk Store**: Persistent storage for document text chunks in `data/chunks_<document_id>.json`.
 - **Dense Embeddings & Vector Search**: Modular embedding services & vector storage.
 - **BM25 Lexical Search**: Keyword retrieval for exact terms, names, and rare tokens.
 - **Hybrid Search (RRF)**: Reciprocal Rank Fusion combining dense semantic & BM25 lexical results.
