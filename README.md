@@ -2,19 +2,46 @@
 
 Production-oriented real-time web application for Retrieval-Augmented Generation (RAG) over user-uploaded PDF/documents featuring hybrid retrieval, reranking, LLM generation, and verified citation sources.
 
-## 🚀 Features & Architecture
+---
 
-- **Document Ingestion & Parsing**: PDF/TXT/MD upload, validation, page-level text extraction with `pypdf`, metadata preservation (`document_id`, `filename`, `page_number`, `source`).
-- **Document Store**: Persistent storage for processed document metadata and page text.
-- **Text Chunking**: Configurable semantic recursive chunking (`chunk_size`, `chunk_overlap`) with paragraph/sentence boundary splitting and complete metadata preservation (`chunk_id`, `document_id`, `filename`, `page_number`, `chunk_index`, `source`).
-- **Chunk Store**: Persistent storage for document text chunks in `data/chunks_<document_id>.json`.
-- **Dense Embeddings & Vector Search**: Modular embedding services & vector storage.
-- **BM25 Lexical Search**: Keyword retrieval for exact terms, names, and rare tokens.
-- **Hybrid Search (RRF)**: Reciprocal Rank Fusion combining dense semantic & BM25 lexical results.
-- **Reranking**: Post-retrieval cross-encoder re-ranking for optimal context precision.
-- **Grounded LLM Generation**: Strict prompt-grounded context generation with fallback guarantees.
-- **Verified Source Citations**: Document name, page number, and chunk traceability.
-- **FastAPI Web API**: Production REST endpoints for document management, search, and chat.
+## 💡 System Capabilities Built So Far
+
+### 1. Core Architecture & FastAPI Foundation
+- **Modular Micro-Services**: Built a clean, decoupled service architecture separated into ingestion, chunking, embeddings, retrieval, reranking, generation, and citations.
+- **Environment Management**: Configuration driven by `pydantic-settings` with automatic directory creation for uploads and persistent data.
+- **Health Monitoring**: Production health check endpoints (`/health`, `/api/v1/health`) for application liveness.
+
+### 2. Document Ingestion & Page-Level Extraction
+- **Multi-Format Uploads**: Support for PDF, TXT, and Markdown file uploads.
+- **Validation Engine**: Strictly validates file extensions, size limits (up to 20MB), and empty uploads.
+- **Page-by-Page Extraction**: Uses `pypdf` to extract text from PDF documents page-by-page while cleaning control characters and formatting artifacts.
+- **Metadata Lineage**: Generates a unique `document_id` UUID for every upload and preserves document lineage (original `filename`, `content_type`, `file_size`, `total_pages`, `source` path, and `created_at` timestamp).
+
+### 3. Text Chunking & Metadata Traceability
+- **Recursive Boundary Splitting**: Intelligently splits page text into configurable chunk sizes (e.g. 500 characters) with overlap (e.g. 50 characters) respecting paragraphs (`\n\n`), line breaks (`\n`), sentences (`. `), and spaces (` `).
+- **Metadata Preservation on Chunks**: Every chunk maintains traceability back to its source document: `chunk_id`, `document_id`, `filename`, `page_number`, `chunk_index`, and `source` file path.
+
+### 4. Dense Embeddings & Vector Service
+- **Modular Abstract Base Provider**: Abstract `BaseEmbeddingProvider` interface allowing seamless, runtime swapping between `SentenceTransformers`, `FastEmbed`, OpenAI, Gemini, or Mock providers without hardcoding.
+- **Vector Generation**: Supports embedding generation for arbitrary query strings and full document chunk callsets into normalized 384-dimensional dense vectors.
+- **Embedding Factory**: Dynamic factory instantiation based on `EMBEDDING_PROVIDER` and `EMBEDDING_MODEL_NAME` configuration.
+
+### 5. Persistent Storage Engines
+- **Document Store**: In-memory cache backed by persistent JSON files (`data/doc_<document_id>.json`) for document metadata and page text.
+- **Chunk Store**: In-memory cache backed by persistent JSON files (`data/chunks_<document_id>.json`) for processed text chunks.
+
+### 6. Production API Endpoints
+- `GET /health` & `GET /api/v1/health` — Liveness & status check.
+- `POST /api/v1/documents/upload` — Upload and ingest PDF/text documents.
+- `GET /api/v1/documents/` — List all ingested documents.
+- `GET /api/v1/documents/{document_id}` — Retrieve metadata and extracted pages for a document.
+- `DELETE /api/v1/documents/{document_id}` — Remove document and raw file from disk.
+- `POST /api/v1/chunks/process/{document_id}` — Process document into configurable text chunks.
+- `GET /api/v1/chunks/{document_id}` — Retrieve generated chunks and metadata for a document.
+- `DELETE /api/v1/chunks/{document_id}` — Delete stored chunks for a document.
+- `POST /api/v1/embeddings/text` — Generate dense vector embedding for single text string.
+- `POST /api/v1/embeddings/chunks/{document_id}` — Generate dense vector embeddings for all document chunks.
+- `GET /api/v1/embeddings/info` — Inspect active embedding model, provider, and dimensionality.
 
 ---
 
@@ -29,20 +56,30 @@ Production-oriented real-time web application for Retrieval-Augmented Generation
 │       ├── api/                 # API routers & endpoint definitions
 │       │   ├── router.py
 │       │   └── routes/
-│       │       └── health.py
+│       │       ├── health.py    # Health check endpoint
+│       │       ├── documents.py # Document ingestion endpoints
+│       │       ├── chunks.py    # Text chunking endpoints
+│       │       └── embeddings.py# Dense embedding endpoints
 │       ├── services/            # Modular service components
-│       │   ├── ingestion/       # PDF parsing & text extraction
-│       │   ├── chunking/        # Text splitting & chunking
-│       │   ├── embeddings/      # Dense embedding service
+│       │   ├── ingestion/       # Validation & PDF page text extraction
+│       │   ├── chunking/        # Recursive text splitter & chunking service
+│       │   ├── embeddings/      # Modular embedding providers (SentenceTransformers, Mock)
 │       │   ├── retrieval/       # Dense, BM25 & Hybrid search
 │       │   ├── reranking/       # Cross-encoder reranker
 │       │   ├── generation/      # Grounded LLM generation
 │       │   └── citations/       # Citation verification engine
-│       ├── models/              # Core domain data models
+│       ├── models/              # Domain data models (document, chunk, embedding)
 │       ├── schemas/             # Pydantic API request/response schemas
-│       ├── database/            # Vector & metadata persistence
+│       ├── database/            # DocumentStore & ChunkStore persistence
 │       └── utils/               # Helper functions & logging setup
-├── tests/                       # Unit & integration test suite
+├── data/                        # Persistent JSON data storage
+├── uploads/                     # Raw file upload storage
+├── tests/                       # Automated pytest test suite
+│   ├── conftest.py
+│   ├── test_health.py
+│   ├── test_documents.py
+│   ├── test_chunks.py
+│   └── test_embeddings.py
 ├── .env.example                 # Environment variable template
 ├── .gitignore                   # Git ignore settings
 ├── requirements.txt             # Python dependencies
@@ -76,7 +113,7 @@ cp .env.example .env
 ### 3. Run the Backend API Server
 
 ```bash
-python -m uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload
+uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
 Interactive API documentation available at:
@@ -87,8 +124,8 @@ Interactive API documentation available at:
 
 ## 🧪 Testing
 
-Run pytest to execute basic unit & health check tests:
+Run pytest to execute all automated unit & integration tests:
 
 ```bash
-python -m pytest
+pytest
 ```

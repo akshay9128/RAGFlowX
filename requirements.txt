@@ -9,6 +9,10 @@ python-multipart>=0.0.9
 # Document Processing
 pypdf>=4.0.0
 
+# Embeddings & Math
+numpy>=1.26.0
+sentence-transformers>=2.5.0
+
 # Testing
 pytest>=8.0.0
 httpx>=0.27.0

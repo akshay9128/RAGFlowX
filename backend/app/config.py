@@ -16,6 +16,11 @@ class Settings(BaseSettings):
     UPLOAD_DIR: Path = BASE_DIR / "uploads"
     DATA_DIR: Path = BASE_DIR / "data"
 
+    # Embedding Settings
+    EMBEDDING_PROVIDER: str = "sentence-transformers"  # sentence-transformers or mock
+    EMBEDDING_MODEL_NAME: str = "all-MiniLM-L6-v2"
+    EMBEDDING_DIMENSION: int = 384
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
