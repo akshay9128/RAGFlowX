@@ -1,4 +1,4 @@
-# Hybrid RAG System with Dense Search, BM25, Reranking, and Verified Citations
+# Hybrid RAG System 
 
 Production-oriented real-time web application for Retrieval-Augmented Generation (RAG) over user-uploaded PDF/documents featuring hybrid retrieval, reranking, LLM generation, and verified citation sources.
 
