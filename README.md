@@ -1,6 +1,7 @@
-# Hybrid RAG System with Dense Search, BM25, Reranking, and Verified Citations
+# RAGFlowX 🚀
+### Hybrid RAG System with Dense Search, BM25, Reranking, and Verified Citations
 
-Production-oriented real-time web application for Retrieval-Augmented Generation (RAG) over user-uploaded PDF/documents featuring hybrid retrieval, reranking, LLM generation, and verified citation sources.
+**RAGFlowX** is a production-oriented, real-time Retrieval-Augmented Generation (RAG) web application for processing, indexing, searching, and answering questions over user-uploaded PDF and text documents with verified citation sources.
 
 ---
 
