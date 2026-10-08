@@ -1,4 +1,4 @@
-# Hybrid RAG System 
+# Hybrid RAG System with Dense Search, BM25, Reranking, and Verified Citations
 
 Production-oriented real-time web application for Retrieval-Augmented Generation (RAG) over user-uploaded PDF/documents featuring hybrid retrieval, reranking, LLM generation, and verified citation sources.
 
@@ -26,11 +26,17 @@ Production-oriented real-time web application for Retrieval-Augmented Generation
 - **Vector Generation**: Supports embedding generation for arbitrary query strings and full document chunk callsets into normalized 384-dimensional dense vectors.
 - **Embedding Factory**: Dynamic factory instantiation based on `EMBEDDING_PROVIDER` and `EMBEDDING_MODEL_NAME` configuration.
 
-### 5. Persistent Storage Engines
+### 5. Vector Database & Similarity Search
+- **Modular Vector Store Interface**: Abstract `BaseVectorStore` interface supporting interchangeable vector database engines (`in_memory`, `chroma`, etc.).
+- **Vectorized Similarity Search**: High-performance numpy-based Cosine Similarity calculation with score normalization `[0.0, 1.0]` and document scope filtering (`document_id`).
+- **Persistent Vector Index**: Persistent JSON storage (`data/vector_store.json`) for indexed document vectors and chunk metadata.
+
+### 6. Persistent Storage Engines
 - **Document Store**: In-memory cache backed by persistent JSON files (`data/doc_<document_id>.json`) for document metadata and page text.
 - **Chunk Store**: In-memory cache backed by persistent JSON files (`data/chunks_<document_id>.json`) for processed text chunks.
+- **Vector Store**: In-memory numpy matrix index backed by persistent JSON file (`data/vector_store.json`) for dense embeddings and metadata.
 
-### 6. Production API Endpoints
+### 7. Production API Endpoints
 - `GET /health` & `GET /api/v1/health` — Liveness & status check.
 - `POST /api/v1/documents/upload` — Upload and ingest PDF/text documents.
 - `GET /api/v1/documents/` — List all ingested documents.
@@ -42,6 +48,10 @@ Production-oriented real-time web application for Retrieval-Augmented Generation
 - `POST /api/v1/embeddings/text` — Generate dense vector embedding for single text string.
 - `POST /api/v1/embeddings/chunks/{document_id}` — Generate dense vector embeddings for all document chunks.
 - `GET /api/v1/embeddings/info` — Inspect active embedding model, provider, and dimensionality.
+- `POST /api/v1/vector-store/index/{document_id}` — Generate embeddings and index document chunks into vector database.
+- `POST /api/v1/vector-store/search` — Perform dense vector similarity search and return top_k relevant chunks with similarity scores.
+- `GET /api/v1/vector-store/stats` — Inspect vector store statistics (total vectors, provider, dimension).
+- `DELETE /api/v1/vector-store/document/{document_id}` — Delete all indexed vectors for a document.
 
 ---
 
@@ -59,27 +69,29 @@ Production-oriented real-time web application for Retrieval-Augmented Generation
 │       │       ├── health.py    # Health check endpoint
 │       │       ├── documents.py # Document ingestion endpoints
 │       │       ├── chunks.py    # Text chunking endpoints
-│       │       └── embeddings.py# Dense embedding endpoints
+│       │       ├── embeddings.py# Dense embedding endpoints
+│       │       └── vector_store.py# Vector Database endpoints
 │       ├── services/            # Modular service components
 │       │   ├── ingestion/       # Validation & PDF page text extraction
 │       │   ├── chunking/        # Recursive text splitter & chunking service
 │       │   ├── embeddings/      # Modular embedding providers (SentenceTransformers, Mock)
-│       │   ├── retrieval/       # Dense, BM25 & Hybrid search
+│       │   ├── retrieval/       # Vector search service (Dense retrieval)
 │       │   ├── reranking/       # Cross-encoder reranker
 │       │   ├── generation/      # Grounded LLM generation
 │       │   └── citations/       # Citation verification engine
-│       ├── models/              # Domain data models (document, chunk, embedding)
+│       ├── models/              # Domain data models (document, chunk, embedding, search)
 │       ├── schemas/             # Pydantic API request/response schemas
-│       ├── database/            # DocumentStore & ChunkStore persistence
+│       ├── database/            # DocumentStore, ChunkStore & VectorStore persistence
 │       └── utils/               # Helper functions & logging setup
-├── data/                        # Persistent JSON data storage
+├── data/                        # Persistent JSON data storage & vector_store.json
 ├── uploads/                     # Raw file upload storage
 ├── tests/                       # Automated pytest test suite
 │   ├── conftest.py
 │   ├── test_health.py
 │   ├── test_documents.py
 │   ├── test_chunks.py
-│   └── test_embeddings.py
+│   ├── test_embeddings.py
+│   └── test_vector_store.py
 ├── .env.example                 # Environment variable template
 ├── .gitignore                   # Git ignore settings
 ├── requirements.txt             # Python dependencies

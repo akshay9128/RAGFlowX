@@ -21,6 +21,10 @@ class Settings(BaseSettings):
     EMBEDDING_MODEL_NAME: str = "all-MiniLM-L6-v2"
     EMBEDDING_DIMENSION: int = 384
 
+    # Vector Database Settings
+    VECTOR_STORE_PROVIDER: str = "in_memory"  # in_memory or chroma
+    VECTOR_STORE_DIR: Path = DATA_DIR / "vector_store"
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

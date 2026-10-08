@@ -2,7 +2,7 @@ from typing import Tuple
 from fastapi import UploadFile, HTTPException, status
 
 ALLOWED_EXTENSIONS = {".pdf", ".txt", ".md"}
-MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024  # 20 MB
+MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024  # Means 20MB
 
 
 class DocumentValidator:
