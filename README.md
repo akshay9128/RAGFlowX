@@ -31,12 +31,17 @@ Production-oriented real-time web application for Retrieval-Augmented Generation
 - **Vectorized Similarity Search**: High-performance numpy-based Cosine Similarity calculation with score normalization `[0.0, 1.0]` and document scope filtering (`document_id`).
 - **Persistent Vector Index**: Persistent JSON storage (`data/vector_store.json`) for indexed document vectors and chunk metadata.
 
-### 6. Persistent Storage Engines
+### 6. Grounded LLM Generation & Basic RAG Pipeline
+- **Modular LLM Generator**: Abstract `BaseLLMProvider` interface supporting Gemini API (`gemini-2.5-flash`), OpenAI, or deterministic `MockLLMProvider`.
+- **Grounded Prompt Engine**: Strict prompt template enforcement ensuring answers are strictly derived from retrieved evidence chunks, with explicit fallbacks when documents lack required information.
+- **Basic RAG Pipeline**: End-to-end question answering pipeline: User Question ➔ Dense Vector Retrieval ➔ Context Formatting ➔ LLM Generation ➔ Grounded Answer + Source Evidence.
+
+### 7. Persistent Storage Engines
 - **Document Store**: In-memory cache backed by persistent JSON files (`data/doc_<document_id>.json`) for document metadata and page text.
 - **Chunk Store**: In-memory cache backed by persistent JSON files (`data/chunks_<document_id>.json`) for processed text chunks.
 - **Vector Store**: In-memory numpy matrix index backed by persistent JSON file (`data/vector_store.json`) for dense embeddings and metadata.
 
-### 7. Production API Endpoints
+### 8. Production API Endpoints
 - `GET /health` & `GET /api/v1/health` — Liveness & status check.
 - `POST /api/v1/documents/upload` — Upload and ingest PDF/text documents.
 - `GET /api/v1/documents/` — List all ingested documents.
@@ -52,6 +57,8 @@ Production-oriented real-time web application for Retrieval-Augmented Generation
 - `POST /api/v1/vector-store/search` — Perform dense vector similarity search and return top_k relevant chunks with similarity scores.
 - `GET /api/v1/vector-store/stats` — Inspect vector store statistics (total vectors, provider, dimension).
 - `DELETE /api/v1/vector-store/document/{document_id}` — Delete all indexed vectors for a document.
+- `POST /api/v1/rag/query` — Execute Basic RAG pipeline (dense retrieval + LLM generation).
+- `GET /api/v1/rag/info` — Inspect active RAG configuration, LLM model, and providers.
 
 ---
 
@@ -70,17 +77,18 @@ Production-oriented real-time web application for Retrieval-Augmented Generation
 │       │       ├── documents.py # Document ingestion endpoints
 │       │       ├── chunks.py    # Text chunking endpoints
 │       │       ├── embeddings.py# Dense embedding endpoints
-│       │       └── vector_store.py# Vector Database endpoints
+│       │       ├── vector_store.py# Vector Database endpoints
+│       │       └── rag.py       # Basic RAG endpoints
 │       ├── services/            # Modular service components
 │       │   ├── ingestion/       # Validation & PDF page text extraction
 │       │   ├── chunking/        # Recursive text splitter & chunking service
 │       │   ├── embeddings/      # Modular embedding providers (SentenceTransformers, Mock)
-│       │   ├── retrieval/       # Vector search service (Dense retrieval)
+│       │   ├── retrieval/       # Dense vector search & RAG pipeline service
 │       │   ├── reranking/       # Cross-encoder reranker
-│       │   ├── generation/      # Grounded LLM generation
+│       │   ├── generation/      # Modular LLM generation providers (Gemini, Mock)
 │       │   └── citations/       # Citation verification engine
 │       ├── models/              # Domain data models (document, chunk, embedding, search)
-│       ├── schemas/             # Pydantic API request/response schemas
+│       ├── schemas/             # Pydantic API request/response schemas (rag, search, chunk, document)
 │       ├── database/            # DocumentStore, ChunkStore & VectorStore persistence
 │       └── utils/               # Helper functions & logging setup
 ├── data/                        # Persistent JSON data storage & vector_store.json
@@ -91,7 +99,10 @@ Production-oriented real-time web application for Retrieval-Augmented Generation
 │   ├── test_documents.py
 │   ├── test_chunks.py
 │   ├── test_embeddings.py
-│   └── test_vector_store.py
+│   ├── test_vector_store.py
+│   └── test_rag.py
+├── run.py                       # Lightweight server entrypoint script (python run.py)
+├── pytest.ini                   # Pytest configuration
 ├── .env.example                 # Environment variable template
 ├── .gitignore                   # Git ignore settings
 ├── requirements.txt             # Python dependencies
@@ -125,7 +136,7 @@ cp .env.example .env
 ### 3. Run the Backend API Server
 
 ```bash
-uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload
+python run.py
 ```
 
 Interactive API documentation available at:

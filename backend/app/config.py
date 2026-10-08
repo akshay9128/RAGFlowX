@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -24,6 +25,13 @@ class Settings(BaseSettings):
     # Vector Database Settings
     VECTOR_STORE_PROVIDER: str = "in_memory"  # in_memory or chroma
     VECTOR_STORE_DIR: Path = DATA_DIR / "vector_store"
+
+    # LLM & RAG Settings
+    LLM_PROVIDER: str = "mock"  # mock, gemini, or openai
+    LLM_MODEL_NAME: str = "gemini-2.5-flash"
+    GEMINI_API_KEY: Optional[str] = None
+    OPENAI_API_KEY: Optional[str] = None
+    RAG_TOP_K: int = 5
 
     model_config = SettingsConfigDict(
         env_file=".env",
