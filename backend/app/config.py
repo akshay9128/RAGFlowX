@@ -5,7 +5,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     """Application settings using pydantic-settings."""
-    APP_NAME: str = "Hybrid RAG System"
+    APP_NAME: str = "RAGFlowX"
     APP_ENV: str = "development"
     DEBUG: bool = True
     HOST: str = "0.0.0.0"

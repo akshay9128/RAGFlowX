@@ -13,3 +13,15 @@ class VectorSearchResult(BaseModel):
     text: str = Field(..., description="Chunk text content")
     score: float = Field(..., description="Similarity score (e.g. Cosine Similarity between 0.0 and 1.0)")
     source: str = Field(..., description="File path reference")
+
+
+class SearchResult(BaseModel):
+    """Represents a single retrieved chunk with its relevance score (generic for BM25 and hybrid search)."""
+    chunk_id: str = Field(..., description="Unique ID of the chunk")
+    document_id: str = Field(..., description="Parent document ID")
+    filename: str = Field(..., description="Parent document filename")
+    page_number: int = Field(..., description="1-indexed page number")
+    chunk_index: int = Field(..., description="Sequence index of chunk in document")
+    text: str = Field(..., description="Chunk text content")
+    score: float = Field(..., description="Relevance score normalized between 0.0 and 1.0")
+    source: str = Field(..., description="File path reference")

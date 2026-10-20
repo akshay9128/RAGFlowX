@@ -3,33 +3,54 @@ from pydantic import BaseModel, Field
 
 
 class VectorSearchRequest(BaseModel):
-    """API request schema for vector similarity search."""
-    query: str = Field(..., description="User question or query string", min_length=1)
-    top_k: Optional[int] = Field(default=5, description="Number of top relevant chunks to retrieve", gt=0, le=100)
-    document_id: Optional[str] = Field(default=None, description="Optional document ID to filter search scope")
+    """Request body for dense vector similarity search."""
+    query: str = Field(..., min_length=1, description="Search query string")
+    top_k: int = Field(default=5, ge=1, le=100, description="Number of top results to return")
+    document_id: Optional[str] = Field(default=None, description="Optional scope to single document")
 
 
 class VectorSearchResultItem(BaseModel):
-    """Schema for individual retrieved search result item."""
-    chunk_id: str
-    document_id: str
-    filename: str
-    page_number: int
-    chunk_index: int
-    text: str
-    score: float
-    source: str
+    """Individual result item in vector search response."""
+    chunk_id: str = Field(..., description="Unique ID of the chunk")
+    document_id: str = Field(..., description="Parent document ID")
+    filename: str = Field(..., description="Parent document filename")
+    page_number: int = Field(..., description="1-indexed page number")
+    chunk_index: int = Field(..., description="Sequence index of chunk in document")
+    text: str = Field(..., description="Chunk text content")
+    score: float = Field(..., description="Similarity score between 0.0 and 1.0")
+    source: str = Field(..., description="File path reference")
 
 
 class VectorSearchResponse(BaseModel):
-    """API response schema for vector similarity search."""
-    query: str
-    total_results: int
-    results: List[VectorSearchResultItem]
+    """Response body for vector similarity search."""
+    query: str = Field(..., description="Original search query")
+    total_results: int = Field(..., description="Total number of results returned")
+    results: List[VectorSearchResultItem] = Field(..., description="List of search results")
 
 
 class VectorStoreStatsResponse(BaseModel):
-    """API response schema for vector store statistics."""
-    provider: str
-    total_vectors: int
-    dimension: int
+    """Response body for vector store statistics."""
+    provider: str = Field(..., description="Vector store provider name")
+    total_vectors: int = Field(..., description="Total number of indexed vectors")
+    dimension: int = Field(..., description="Embedding vector dimension")
+
+
+class BM25SearchRequest(BaseModel):
+    """Request body for BM25 keyword search."""
+    query: str = Field(..., min_length=1, description="Search query string")
+    top_k: int = Field(default=5, ge=1, le=100, description="Number of top results to return")
+    document_id: Optional[str] = Field(default=None, description="Optional scope to single document")
+
+
+class BM25SearchResponse(BaseModel):
+    """Response body for BM25 keyword search."""
+    query: str = Field(..., description="Original search query")
+    total_results: int = Field(..., description="Total number of results returned")
+    results: List[VectorSearchResultItem] = Field(..., description="List of search results")
+
+
+class BM25StatsResponse(BaseModel):
+    """Response body for BM25 index statistics."""
+    provider: str = Field(..., description="BM25 provider name")
+    total_indexed_chunks: int = Field(..., description="Total number of indexed chunks")
+    indexed_documents: int = Field(..., description="Number of documents with BM25 indices")
