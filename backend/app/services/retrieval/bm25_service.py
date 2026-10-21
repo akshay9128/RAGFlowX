@@ -41,6 +41,10 @@ class BM25SearchService:
                         ]
                         for doc_id, chunks_data in data.get("indexed_chunks", {}).items()
                     }
+                    # Rebuild BM25 indices from loaded chunks
+                    for doc_id, chunks in self._indexed_chunks.items():
+                        tokenized_chunks = [self._tokenize(chunk.text) for chunk in chunks]
+                        self._bm25_indices[doc_id] = BM25Okapi(tokenized_chunks)
             except Exception as exc:
                 print(f"Warning: Failed to load BM25 index from {bm25_data_file}: {exc}")
 
@@ -143,6 +147,9 @@ class BM25SearchService:
                 for idx, score in enumerate(scores):
                     if idx < len(chunk_list):
                         results.append((chunk_list[idx], float(score)))
+
+        # Filter out zero/negative scores before sorting
+        results = [(chunk, score) for chunk, score in results if score > 0]
 
         # Sort by score descending and take top_k
         results.sort(key=lambda x: x[1], reverse=True)
