@@ -146,33 +146,24 @@ class HybridSearchService:
         if not query or not query.strip():
             return []
 
-        # Execute BM25 search first (authoritative for keyword matching)
+        # Execute BM25 keyword search
         bm25_results = self.bm25_service.search(
             query=query,
             top_k=top_k * 2,
             document_id=document_id
         )
 
-        # If BM25 finds results, return them directly (authoritative)
-        if bm25_results:
-            return bm25_results[:top_k]
-
-        # BM25 found nothing - try vector search as fallback
-        # (only useful with real embeddings for semantic search)
-        vector_results = self.vec_service.search_similar_chunks(
+        # Execute dense vector similarity search
+        vector_search_results = self.vec_service.search_similar_chunks(
             query=query,
             top_k=top_k * 2,
             document_id=document_id
         )
 
-        # If no vector results either, return empty
-        if not vector_results:
-            return []
-
         # Convert VectorSearchResult to SearchResult format
-        search_results: List[SearchResult] = []
-        for r in vector_results:
-            search_results.append(
+        vector_results: List[SearchResult] = []
+        for r in vector_search_results:
+            vector_results.append(
                 SearchResult(
                     chunk_id=r.chunk_id,
                     document_id=r.document_id,
@@ -185,7 +176,16 @@ class HybridSearchService:
                 )
             )
 
-        return search_results[:top_k]
+        # If both retrieval systems return nothing, there is nothing to fuse
+        if not vector_results and not bm25_results:
+            return []
+
+        # Combine both ranked lists with Reciprocal Rank Fusion on every query
+        return reciprocal_rank_fusion(
+            vector_results=vector_results,
+            bm25_results=bm25_results,
+            top_k=top_k,
+        )
 
     def get_stats(self) -> dict:
         """Returns statistics for both vector and BM25 search services."""
