@@ -148,8 +148,8 @@ class BM25SearchService:
                     if idx < len(chunk_list):
                         results.append((chunk_list[idx], float(score)))
 
-        # Filter out zero/negative scores before sorting
-        results = [(chunk, score) for chunk, score in results if score > 0]
+        # Filter out zero scores (BM25 scores can be negative, which still indicates relevance)
+        results = [(chunk, score) for chunk, score in results if score != 0]
 
         # Sort by score descending and take top_k
         results.sort(key=lambda x: x[1], reverse=True)

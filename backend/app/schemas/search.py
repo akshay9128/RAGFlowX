@@ -54,3 +54,30 @@ class BM25StatsResponse(BaseModel):
     provider: str = Field(..., description="BM25 provider name")
     total_indexed_chunks: int = Field(..., description="Total number of indexed chunks")
     indexed_documents: int = Field(..., description="Number of documents with BM25 indices")
+
+
+class HybridSearchRequest(BaseModel):
+    """Request body for hybrid search (vector + BM25)."""
+    query: str = Field(..., min_length=1, description="Search query string")
+    top_k: int = Field(default=5, ge=1, le=100, description="Number of top results to return")
+    document_id: Optional[str] = Field(default=None, description="Optional scope to single document")
+
+
+class HybridSearchResultItem(BaseModel):
+    """Individual result item in hybrid search response."""
+    chunk_id: str = Field(..., description="Unique ID of the chunk")
+    document_id: str = Field(..., description="Parent document ID")
+    filename: str = Field(..., description="Parent document filename")
+    page_number: int = Field(..., description="1-indexed page number")
+    chunk_index: int = Field(..., description="Sequence index of chunk in document")
+    text: str = Field(..., description="Chunk text content")
+    score: float = Field(..., description="RRF combined score")
+    source: str = Field(..., description="File path reference")
+    metadata: Optional[dict] = Field(default=None, description="Additional scoring metadata")
+
+
+class HybridSearchResponse(BaseModel):
+    """Response body for hybrid search."""
+    query: str = Field(..., description="Original search query")
+    total_results: int = Field(..., description="Total number of results returned")
+    results: List[HybridSearchResultItem] = Field(..., description="List of hybrid search results")
