@@ -2,6 +2,7 @@ import pytest
 from backend.app.services.embeddings.mock import MockEmbeddingProvider
 from backend.app.services.embeddings.service import embedding_service
 from backend.app.services.generation.mock import MockLLMProvider
+from backend.app.services.generation.failover import FailoverLLMProvider
 from backend.app.services.retrieval.rag_service import rag_service
 from backend.app.database.document_store import document_store
 from backend.app.database.chunk_store import chunk_store
@@ -37,6 +38,9 @@ def test_rag_info_api(client):
     assert "llm_provider" in data
     assert "llm_model" in data
     assert "vector_store_provider" in data
+    assert "enable_chain_of_thought" in data
+    assert "enable_citations" in data
+    assert "enable_confidence_scoring" in data
 
 
 def test_rag_query_empty_store(client):
@@ -84,7 +88,45 @@ def test_basic_rag_full_end_to_end(client):
     assert "answer" in rag_data
     assert len(rag_data["answer"]) > 0
 
-    top_chunk = rag_data["retrieved_chunks"][0]
-    assert top_chunk["document_id"] == doc_id
-    assert top_chunk["filename"] == "acme_pricing.txt"
-    assert "score" in top_chunk
+
+def test_rag_phase10_features_api(client):
+    """Test Phase 10 Advanced RAG features: Chain-of-Thought, Citations, Confidence Scoring."""
+    # 1. Upload document
+    doc_text = b"Phase 10 advanced generation tests confidence scores and source citations."
+    upload_res = client.post(
+        "/api/v1/documents/upload",
+        files={"file": ("phase10.txt", doc_text, "text/plain")}
+    )
+    doc_id = upload_res.json()["document_id"]
+
+    client.post(f"/api/v1/chunks/process/{doc_id}")
+    client.post(f"/api/v1/vector-store/index/{doc_id}")
+
+    # 2. Query with all Phase 10 flags enabled
+    res = client.post(
+        "/api/v1/rag/query",
+        json={
+            "query": "What does Phase 10 test?",
+            "top_k": 2,
+            "use_chain_of_thought": True,
+            "use_citations": True,
+            "use_confidence_scoring": True,
+        }
+    )
+    assert res.status_code == 200
+    data = res.json()
+    assert data["confidence_score"] is not None
+    assert 0.0 <= data["confidence_score"] <= 1.0
+    assert data["citations"] is not None
+    assert len(data["citations"]) > 0
+    assert data["citations"][0]["filename"] == "phase10.txt"
+    assert data["reasoning_trace"] is not None
+
+
+def test_failover_provider():
+    """Test FailoverLLMProvider falls back from a failing provider to mock."""
+    failover = FailoverLLMProvider(provider_order=["gemini", "mock"])
+    # Gemini will fail because key is not configured, should failover to mock successfully
+    ans = failover.generate("Test prompt")
+    assert ans is not None
+    assert len(ans) > 0

@@ -16,11 +16,16 @@ async def query_rag_pipeline(payload: RAGQueryRequest):
     """
     Basic RAG Endpoint: Performs dense vector retrieval over uploaded documents,
     builds a grounded context prompt, and generates an answer using the LLM.
+
+    Phase 10 enhancements: use_chain_of_thought, use_citations, use_confidence_scoring.
     """
     response = rag_service.query_rag(
         query=payload.query,
         top_k=payload.top_k or settings.RAG_TOP_K,
-        document_id=payload.document_id
+        document_id=payload.document_id,
+        use_chain_of_thought=payload.use_chain_of_thought,
+        use_citations=payload.use_citations,
+        use_confidence_scoring=payload.use_confidence_scoring,
     )
     return response
 
@@ -38,5 +43,10 @@ async def get_rag_info():
         "llm_model": provider.model_name,
         "vector_store_provider": settings.VECTOR_STORE_PROVIDER,
         "embedding_provider": settings.EMBEDDING_PROVIDER,
-        "default_top_k": settings.RAG_TOP_K
+        "default_top_k": settings.RAG_TOP_K,
+        "enable_chain_of_thought": settings.RAG_ENABLE_CHAIN_OF_THOUGHT,
+        "enable_citations": settings.RAG_ENABLE_CITATIONS,
+        "enable_confidence_scoring": settings.RAG_ENABLE_CONFIDENCE_SCORING,
+        "failover_enabled": settings.LLM_FAILOVER_ENABLED,
+        "failover_providers": settings.LLM_FAILOVER_PROVIDERS,
     }

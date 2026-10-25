@@ -33,6 +33,15 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: Optional[str] = None
     RAG_TOP_K: int = 5
 
+    # Phase 10 — Advanced Grounded LLM Generation feature flags
+    RAG_ENABLE_CHAIN_OF_THOUGHT: bool = True
+    RAG_ENABLE_CITATIONS: bool = True
+    RAG_ENABLE_CONFIDENCE_SCORING: bool = True
+
+    # Multi-provider failover (Gemini -> OpenAI -> Mock)
+    LLM_FAILOVER_ENABLED: bool = True
+    LLM_FAILOVER_PROVIDERS: str = "gemini,mock"
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
