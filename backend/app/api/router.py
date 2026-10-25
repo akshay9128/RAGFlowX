@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from backend.app.api.routes import health, documents, chunks, embeddings, vector_store, rag, bm25, hybrid
+from backend.app.api.routes import health, documents, chunks, embeddings, vector_store, rag, bm25, hybrid, rerank
 
 api_router = APIRouter()
 api_router.include_router(health.router)
@@ -10,8 +10,4 @@ api_router.include_router(vector_store.router)
 api_router.include_router(rag.router)
 api_router.include_router(bm25.router)
 api_router.include_router(hybrid.router)
-
-
-
-
-
+api_router.include_router(rerank.router)
