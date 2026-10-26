@@ -1,9 +1,17 @@
 from fastapi import APIRouter, status
 from backend.app.schemas.rag import RAGQueryRequest, RAGQueryResponse
+from backend.app.schemas.verification import (
+    VerifiedAnswerRequest,
+    VerifiedAnswerResponse,
+    StandaloneVerificationRequest,
+    StandaloneVerificationResponse,
+)
 from backend.app.services.retrieval.rag_service import rag_service
+from backend.app.services.citations.service import verification_service
+from backend.app.models.search import VectorSearchResult
 from backend.app.config import settings
 
-router = APIRouter(prefix="/rag", tags=["Basic RAG"])
+router = APIRouter(prefix="/rag", tags=["Basic RAG & Verification"])
 
 
 @router.post(
@@ -28,6 +36,67 @@ async def query_rag_pipeline(payload: RAGQueryRequest):
         use_confidence_scoring=payload.use_confidence_scoring,
     )
     return response
+
+
+@router.post(
+    "/query/verified",
+    response_model=VerifiedAnswerResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Ask a question with verified source citations and claim-level grounding (Phase 11)"
+)
+async def query_verified_rag_pipeline(payload: VerifiedAnswerRequest):
+    """
+    Verified RAG Endpoint: Retrieves evidence, generates an answer, extracts atomic claims,
+    and verifies each claim against source chunks with claim-level support scores and citations.
+    """
+    response = rag_service.query_verified_rag(
+        query=payload.query,
+        top_k=payload.top_k or settings.RAG_TOP_K,
+        document_id=payload.document_id,
+        use_chain_of_thought=payload.use_chain_of_thought,
+    )
+    return response
+
+
+@router.post(
+    "/verify",
+    response_model=StandaloneVerificationResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Verify any candidate answer against provided evidence chunks (Phase 11)"
+)
+async def verify_answer_standalone(payload: StandaloneVerificationRequest):
+    """
+    Standalone Verification Endpoint: Evaluates candidate answer claims against given chunks,
+    returning claim support statuses, scores, and overall groundedness.
+    """
+    # Convert VectorSearchResultItem to VectorSearchResult model for verification service
+    chunks = [
+        VectorSearchResult(
+            chunk_id=item.chunk_id,
+            document_id=item.document_id,
+            filename=item.filename,
+            page_number=item.page_number,
+            chunk_index=item.chunk_index,
+            text=item.text,
+            score=item.score,
+            source=item.source
+        )
+        for item in payload.chunks
+    ]
+
+    claims, groundedness, unsupported, verified_answer_text = verification_service.verify_answer(
+        payload.answer, chunks
+    )
+    total_claims = len(claims)
+
+    return StandaloneVerificationResponse(
+        answer=payload.answer,
+        verified_answer=verified_answer_text,
+        groundedness_score=groundedness,
+        total_claims=total_claims,
+        claims=claims,
+        unsupported_claims=unsupported
+    )
 
 
 @router.get(

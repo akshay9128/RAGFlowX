@@ -3,9 +3,11 @@ from backend.app.config import settings
 from backend.app.models.search import VectorSearchResult
 from backend.app.schemas.rag import RAGQueryResponse, Citation
 from backend.app.schemas.search import VectorSearchResultItem
+from backend.app.schemas.verification import VerifiedAnswerResponse, VerifiedClaim
 from backend.app.services.retrieval.vector_service import vector_search_service, VectorSearchService
 from backend.app.services.generation.factory import get_llm_provider
 from backend.app.services.generation.base import BaseLLMProvider
+from backend.app.services.citations.service import verification_service
 
 
 class RAGService:
@@ -111,22 +113,13 @@ class RAGService:
         use_citations: bool = False,
         use_confidence_scoring: bool = False,
     ) -> RAGQueryResponse:
-        """Executes Basic RAG pipeline: Dense Retrieval -> Prompt Construction -> LLM Generation -> Grounded Answer.
-
-        Opt-in Phase 10 enhancements:
-        - use_chain_of_thought: reason step-by-step in the prompt before answering
-        - use_citations: attach explicit source citations to the response
-        - use_confidence_scoring: include a confidence score in the response
-        All defaults preserve existing Basic RAG behavior.
-        """
-        # 1. Retrieve top_k relevant chunks via Dense Vector Search
+        """Executes Basic RAG pipeline: Dense Retrieval -> Prompt Construction -> LLM Generation -> Grounded Answer."""
         retrieved_chunks = self.vec_service.search_similar_chunks(
             query=query,
             top_k=top_k,
             document_id=document_id
         )
 
-        # 2. Check if no chunks retrieved
         if not retrieved_chunks:
             fallback_answer = "I could not find enough relevant information in the uploaded documents to answer your question."
             citations: Optional[List[Citation]] = (
@@ -143,18 +136,15 @@ class RAGService:
                 reasoning_trace=None,
             )
 
-        # 3. Build grounded prompt (optionally with chain-of-thought instructions)
         system_instruction, user_prompt = self.build_grounded_prompt(
             query, retrieved_chunks, use_chain_of_thought=use_chain_of_thought
         )
 
-        # 4. Generate answer via LLM
         generated_answer = self.llm_provider.generate(
             user_prompt, system_instruction,
             use_chain_of_thought=use_chain_of_thought
         )
 
-        # 5. Format retrieved evidence items
         chunk_items = [
             VectorSearchResultItem(
                 chunk_id=r.chunk_id,
@@ -169,7 +159,6 @@ class RAGService:
             for r in retrieved_chunks
         ]
 
-        # 6. Optional citations and confidence scoring
         citations: Optional[List[Citation]] = None
         if use_citations:
             citations = self._build_citations(retrieved_chunks)
@@ -180,8 +169,6 @@ class RAGService:
 
         reasoning_trace: Optional[str] = None
         if use_chain_of_thought:
-            # Extract the reasoning portion if the model included a trace; otherwise
-            # provide a synthetic trace from the retrieved evidence.
             reasoning_trace = (
                 f"Retrieved {len(retrieved_chunks)} context chunks for query '{query}'. "
                 f"Answer grounded strictly in retrieved evidence without outside knowledge."
@@ -196,6 +183,60 @@ class RAGService:
             citations=citations,
             confidence_score=confidence_score,
             reasoning_trace=reasoning_trace,
+        )
+
+    def query_verified_rag(
+        self,
+        query: str,
+        top_k: int = 5,
+        document_id: Optional[str] = None,
+        use_chain_of_thought: bool = False,
+    ) -> VerifiedAnswerResponse:
+        """Executes RAG pipeline followed by claim-level source citation verification."""
+        retrieved_chunks = self.vec_service.search_similar_chunks(
+            query=query, top_k=top_k, document_id=document_id
+        )
+
+        if not retrieved_chunks:
+            fallback_answer = "I could not find enough relevant information in the uploaded documents to answer your question."
+            return VerifiedAnswerResponse(
+                query=query,
+                original_answer=fallback_answer,
+                verified_answer=fallback_answer,
+                total_claims=0,
+                supported_claims_count=0,
+                groundedness_score=0.0,
+                claims=[],
+                unsupported_claims=[],
+                citations=[],
+                llm_model=self.llm_provider.model_name
+            )
+
+        system_instruction, user_prompt = self.build_grounded_prompt(
+            query, retrieved_chunks, use_chain_of_thought=use_chain_of_thought
+        )
+        generated_answer = self.llm_provider.generate(
+            user_prompt, system_instruction, use_chain_of_thought=use_chain_of_thought
+        )
+
+        claims, groundedness, unsupported, verified_answer_text = verification_service.verify_answer(
+            generated_answer, retrieved_chunks
+        )
+
+        supported_count = sum(1 for c in claims if c.support_status == "supported")
+        citations = self._build_citations(retrieved_chunks)
+
+        return VerifiedAnswerResponse(
+            query=query,
+            original_answer=generated_answer,
+            verified_answer=verified_answer_text,
+            total_claims=len(claims),
+            supported_claims_count=supported_count,
+            groundedness_score=groundedness,
+            claims=claims,
+            unsupported_claims=unsupported,
+            citations=citations,
+            llm_model=self.llm_provider.model_name
         )
 
 
