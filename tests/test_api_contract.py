@@ -29,12 +29,11 @@ def test_pipeline_ingest_endpoint():
         files={"file": ("pipeline_test.txt", file_content, "text/plain")},
         params={"chunk_size": 100, "chunk_overlap": 20}
     )
-    assert response.status_code == 404 or response.status_code == 201
-    if response.status_code == 201:
-        data = response.json()
-        assert data["status"] == "success"
-        assert "document_id" in data
-        assert data["filename"] == "pipeline_test.txt"
-        assert data["total_chunks"] > 0
-        assert data["vector_indexed"] > 0
-        assert data["bm25_indexed"] > 0
+    assert response.status_code == 201
+    data = response.json()
+    assert data["status"] == "success"
+    assert "document_id" in data
+    assert data["filename"] == "pipeline_test.txt"
+    assert data["total_chunks"] > 0
+    assert data["vector_indexed"] > 0
+    assert data["bm25_indexed"] > 0

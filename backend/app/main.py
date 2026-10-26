@@ -1,5 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
 from backend.app.config import settings
 from backend.app.api.router import api_router
@@ -30,8 +32,10 @@ register_exception_handlers(app)
 # Include main API router with version prefix
 app.include_router(api_router, prefix=settings.API_PREFIX)
 
+# Mount static frontend files
+app.mount("/static", StaticFiles(directory="frontend"), name="static")
 
-# Also expose root health endpoint
+
 @app.get("/health", tags=["Health"])
 async def root_health():
     return {
@@ -47,5 +51,12 @@ async def root():
     return {
         "message": f"Welcome to {settings.APP_NAME} API",
         "docs": "/docs",
-        "health": "/health"
+        "health": "/health",
+        "ui": "/ui"
     }
+
+
+@app.get("/ui", tags=["UI"])
+async def serve_frontend():
+    """Serves the RAGFlowX web UI interface."""
+    return FileResponse("frontend/index.html")

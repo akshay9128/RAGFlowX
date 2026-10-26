@@ -78,3 +78,26 @@ def test_chunk_processing_api_workflow(client):
 def test_chunk_process_nonexistent_doc(client):
     response = client.post("/api/v1/chunks/process/nonexistent-uuid")
     assert response.status_code == 404
+
+
+def test_chunk_process_empty_document(client):
+    # Upload an empty or whitespace-only text document (or one that yields 0 chunks)
+    content = b"   "
+    upload_res = client.post(
+        "/api/v1/documents/upload",
+        files={"file": ("empty_doc.txt", content, "text/plain")}
+    )
+    assert upload_res.status_code == 201
+    doc_id = upload_res.json()["document_id"]
+
+    # Try processing chunks
+    chunk_res = client.post(f"/api/v1/chunks/process/{doc_id}")
+    assert chunk_res.status_code == 422
+    data = chunk_res.json()
+    assert "Could not extract any text chunks" in data.get("detail", "")
+
+    # Verify no chunks were persisted
+    get_res = client.get(f"/api/v1/chunks/{doc_id}")
+    assert get_res.status_code == 200
+    assert get_res.json()["total_chunks"] == 0
+

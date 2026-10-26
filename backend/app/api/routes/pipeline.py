@@ -5,18 +5,16 @@ from backend.app.services.embeddings.service import EmbeddingService
 from backend.app.services.retrieval.vector_service import VectorSearchService
 from backend.app.services.retrieval.bm25_service import BM25SearchService
 from backend.app.services.pipeline.service import PipelineService
-from backend.app.database.document_store import DocumentStore
-from backend.app.database.chunk_store import ChunkStore
+from backend.app.database.document_store import document_store
+from backend.app.database.chunk_store import chunk_store
 from backend.app.database.vector_store.factory import get_vector_store
 
 router = APIRouter(prefix="/pipeline", tags=["pipeline"])
 
 def get_pipeline_service() -> PipelineService:
-    doc_store = DocumentStore()
-    chunk_store = ChunkStore()
-    ingestion_svc = DocumentIngestionService(doc_store)
-    chunk_svc = ChunkingService(doc_store, chunk_store)
-    embedding_svc = EmbeddingService()
+    ingestion_svc = DocumentIngestionService(document_store)
+    chunk_svc = ChunkingService(document_store, chunk_store)
+    embedding_svc = EmbeddingService(chk_store=chunk_store)
     vector_store = get_vector_store()
     vector_svc = VectorSearchService(embedding_svc, vector_store)
     bm25_svc = BM25SearchService(chunk_store)
