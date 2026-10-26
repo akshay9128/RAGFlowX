@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from backend.app.config import settings
 from backend.app.api.router import api_router
+from backend.app.middleware.error_handler import request_tracing_middleware, register_exception_handlers
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -19,6 +20,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Register request tracing middleware
+app.middleware("http")(request_tracing_middleware)
+
+# Register global exception handlers
+register_exception_handlers(app)
 
 # Include main API router with version prefix
 app.include_router(api_router, prefix=settings.API_PREFIX)
