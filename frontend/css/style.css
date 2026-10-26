@@ -1,0 +1,10 @@
+/* RAGFlowX Custom Stylesheet */
+body { font-family: 'Inter', sans-serif; }
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #f9fafb; }
+::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+
+/* Alpine.js cloak — hides elements before Alpine hydrates */
+[x-cloak] { display: none !important; }

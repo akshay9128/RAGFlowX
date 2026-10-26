@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-gray-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAGFlowX — Modern Hybrid RAG Workspace</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.8/dist/purify.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body class="h-screen overflow-hidden flex flex-col antialiased text-gray-900" x-data="appState()" x-init="init()">
+
+    <!-- Header Navigation -->
+    <header class="bg-white border-b border-gray-200 px-6 py-4 flex flex-wrap items-center justify-between gap-4 shadow-sm flex-shrink-0">
+        <div class="flex items-center space-x-3">
+            <div class="bg-indigo-600 text-white p-2 rounded-lg font-bold text-lg">R</div>
+            <div>
+                <h1 class="text-xl font-bold text-gray-900">RAGFlowX Workspace</h1>
+                <p class="text-xs text-gray-500">Hybrid Search, Verified Citations & Document Manager</p>
+            </div>
+        </div>
+        <div class="flex items-center space-x-2 sm:space-x-3">
+            <button @click="activeTab = 'chat'" :class="activeTab === 'chat' ? 'bg-indigo-600 text-white shadow-sm' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'" class="px-4 py-2 rounded-lg text-sm font-medium transition">Chat & RAG</button>
+            <button @click="activeTab = 'documents'; loadDocuments()" :class="activeTab === 'documents' ? 'bg-indigo-600 text-white shadow-sm' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'" class="px-4 py-2 rounded-lg text-sm font-medium transition">Documents</button>
+            <button @click="activeTab = 'settings'" :class="activeTab === 'settings' ? 'bg-indigo-600 text-white shadow-sm' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'" class="px-4 py-2 rounded-lg text-sm font-medium transition">Settings</button>
+        </div>
+    </header>
+
+    <!-- Toast Notification Banner -->
+    <template x-if="toast.show" x-cloak>
+        <div class="fixed top-5 right-5 z-50 px-5 py-3 rounded-xl shadow-xl text-sm font-medium transition transform duration-300 flex items-center space-x-2"
+             :class="toast.type === 'error' ? 'bg-red-600 text-white' : 'bg-emerald-600 text-white'">
+            <span x-text="toast.type === 'error' ? '⚠️' : '✅'"></span>
+            <span x-text="toast.message"></span>
+        </div>
+    </template>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 overflow-hidden flex relative"
+          @dragover.prevent="isDragging = true"
+          @dragleave.prevent="isDragging = false"
+          @drop.prevent="handleFileDrop($event); isDragging = false">
+
+        <!-- Drag & Drop Overlay -->
+        <div x-show="isDragging" x-cloak class="absolute inset-0 bg-indigo-600 bg-opacity-10 border-4 border-dashed border-indigo-500 z-40 flex items-center justify-center pointer-events-none">
+            <div class="bg-white p-8 rounded-2xl shadow-2xl text-center text-indigo-700 font-bold text-lg">
+                Drop documents or ZIP archives here to upload and ingest
+            </div>
+        </div>
+
+        <!-- TAB 1: Chat & RAG -->
+        <div x-show="activeTab === 'chat'" x-cloak class="flex-1 flex h-full overflow-hidden">
+            <!-- Sidebar: Sessions -->
+            <div class="w-80 border-r border-gray-200 bg-white flex flex-col flex-shrink-0">
+                <div class="p-4 border-b border-gray-200 flex justify-between items-center">
+                    <h2 class="font-semibold text-gray-800 text-sm">Conversations</h2>
+                    <button @click="createSession()" class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-indigo-700 transition">+ New Chat</button>
+                </div>
+                <div class="flex-1 overflow-y-auto p-3 space-y-2">
+                    <template x-if="sessions.length === 0">
+                        <div class="text-center text-xs text-gray-400 px-3 py-4">No conversations yet</div>
+                    </template>
+                    <template x-for="session in sessions" :key="session.session_id">
+                        <div @click="selectSession(session.session_id)" :class="currentSessionId === session.session_id ? 'bg-indigo-50 border-indigo-300 text-indigo-900' : 'hover:bg-gray-50 border-gray-200 text-gray-700'" class="p-3 rounded-xl border cursor-pointer transition flex justify-between items-center">
+                            <div class="truncate">
+                                <p class="text-sm font-medium truncate w-48" x-text="session.title || session.session_id"></p>
+                                <p class="text-xs text-gray-400 mt-0.5" x-text="(session.turn_count || 0) + ' turns'"></p>
+                            </div>
+                            <button @click.stop="deleteSession(session.session_id)" class="text-gray-400 hover:text-red-600 text-xs p-1" aria-label="Delete conversation">✕</button>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <!-- Chat Thread & Input -->
+            <div class="flex-1 flex flex-col bg-gray-50 overflow-hidden relative">
+                <!-- Chat Messages Scroll Area -->
+                <div class="flex-1 overflow-y-auto p-6 space-y-6" id="chat-thread">
+                    <template x-if="messages.length === 0 && !historyLoading">
+                        <div class="h-full flex flex-col items-center justify-center text-center text-gray-400 space-y-3">
+                            <div class="p-4 bg-white rounded-full shadow-sm text-indigo-600 text-2xl font-bold">💬</div>
+                            <p class="text-lg font-medium text-gray-700">Start a conversation with your documents</p>
+                            <p class="text-sm text-gray-400 max-w-md">Ask questions about uploaded docs. Answers include verified citations and grounded scores.</p>
+                        </div>
+                    </template>
+                    <template x-if="historyLoading && messages.length === 0">
+                        <div class="h-full flex flex-col items-center justify-center text-center text-gray-400 space-y-3">
+                            <div class="animate-spin text-indigo-600 text-2xl">⟳</div>
+                            <p class="text-sm">Loading conversation...</p>
+                        </div>
+                    </template>
+                    <template x-if="historyError && messages.length === 0">
+                        <div class="h-full flex flex-col items-center justify-center text-center text-gray-400 space-y-3">
+                            <p class="text-sm text-red-600 mb-3" x-text="historyError"></p>
+                            <button @click="retrySelectCurrent" class="text-xs text-indigo-600 hover:underline">Retry loading</button>
+                        </div>
+                    </template>
+                    <template x-for="(msg, idx) in messages" :key="idx">
+                        <div :class="msg.role === 'user' ? 'flex justify-end' : 'flex justify-start'">
+                            <div :class="msg.role === 'user' ? 'bg-indigo-600 text-white rounded-2xl rounded-tr-none' : 'bg-white border border-gray-200 text-gray-900 rounded-2xl rounded-tl-none shadow-sm'" class="max-w-2xl px-5 py-4 space-y-3">
+                                <div x-show="msg.role === 'user'" class="text-sm leading-relaxed break-words" x-text="msg.content"></div>
+                                <div x-show="msg.role === 'assistant'" class="text-sm leading-relaxed break-words" x-html="sanitizeMarkdown(msg.content)"></div>
+                                <template x-if="msg.groundedness_score !== undefined && msg.groundedness_score !== null">
+                                    <div class="flex items-center space-x-2 text-xs text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md w-fit">
+                                        <span>🛡️ Groundedness:</span>
+                                        <span class="font-semibold" x-text="(msg.groundedness_score * 100).toFixed(0) + '%'"></span>
+                                    </div>
+                                </template>
+                                <template x-if="msg.citations && msg.citations.length > 0">
+                                    <div class="pt-2 border-t border-gray-100 flex flex-wrap gap-2 items-center">
+                                        <span class="text-xs text-gray-500 font-medium">Sources:</span>
+                                        <template x-for="cit in msg.citations" :key="cit.chunk_index + '-' + cit.page_number">
+                                            <button @click="openCitationModal(cit)" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs px-2.5 py-1 rounded-md font-medium transition flex items-center space-x-1" aria-label="View citation passage">
+                                                📄 <span x-text="cit.filename"></span> (p.<span x-text="cit.page_number"></span>)
+                                            </button>
+                                        </template>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+
+                <!-- Bottom Input Section -->
+                <div class="bg-white border-t border-gray-200 px-6 py-3 flex-shrink-0">
+                    <div class="max-w-4xl mx-auto space-y-2">
+                        <!-- Uploaded File Chips -->
+                        <template x-if="uploadedChips.length > 0">
+                            <div class="flex flex-wrap gap-2 items-center">
+                                <span class="text-xs text-gray-500 font-medium">Ingested:</span>
+                                <template x-for="(chip, chipIdx) in uploadedChips" :key="chipIdx">
+                                    <span class="inline-flex items-center space-x-1 bg-indigo-50 text-indigo-700 text-xs px-3 py-1 rounded-full font-medium border border-indigo-200">
+                                        <span>📄</span>
+                                        <span x-text="chip.name"></span>
+                                        <button @click="uploadedChips.splice(chipIdx, 1)" class="ml-1 text-indigo-400 hover:text-indigo-700" aria-label="Remove ingested file">✕</button>
+                                    </span>
+                                </template>
+                            </div>
+                        </template>
+
+                        <!-- Input Form Row -->
+                        <form @submit.prevent="sendMessage()" class="flex items-center gap-3 w-full">
+                            <input type="file" multiple accept=".pdf,.doc,.docx,.txt,.md,.csv,.xlsx,.pptx,.html,.json,.rtf,.zip" class="hidden" x-ref="fileInput" @change="handleFileUpload($event)">
+                            <button type="button" @click="$refs.fileInput.click()" title="Upload files" aria-label="Upload files" class="bg-white border border-gray-300 hover:bg-gray-100 text-indigo-600 w-[52px] h-[52px] rounded-xl font-medium text-sm flex items-center justify-center transition shadow-sm cursor-pointer flex-shrink-0" :disabled="uploading || sending">
+                                <span x-show="!uploading && !sending" class="text-lg font-bold">+</span>
+                                <span x-show="uploading || sending" class="animate-spin text-sm">⟳</span>
+                            </button>
+                            <input type="text" x-model="inputQuery" placeholder="Ask a question about your documents..." class="flex-1 min-w-0 h-[52px] border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm" :disabled="sending">
+                            <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white h-[52px] px-6 rounded-xl font-medium text-sm whitespace-nowrap transition shadow-sm flex-shrink-0 flex items-center justify-center" :disabled="sending || !inputQuery.trim()">Send</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 2: Documents -->
+        <div x-show="activeTab === 'documents'" x-cloak class="flex-1 p-8 overflow-y-auto bg-gray-50">
+            <div class="max-w-5xl mx-auto space-y-6">
+                <div class="flex justify-between items-center bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+                    <div>
+                        <h2 class="text-xl font-bold text-gray-900">Documents</h2>
+                        <p class="text-sm text-gray-500">Manage ingested documents, review pages, and safe cleanup.</p>
+                    </div>
+                    <div class="flex items-center space-x-3">
+                        <input type="text" x-model="docSearchQuery" placeholder="Search documents..." class="border border-gray-300 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <button @click="loadDocuments()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition shadow-sm">Refresh</button>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-gray-50 border-b border-gray-200 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                <th class="p-4">Filename</th>
+                                <th class="p-4">Type</th>
+                                <th class="p-4">Size</th>
+                                <th class="p-4">Pages</th>
+                                <th class="p-4">Uploaded</th>
+                                <th class="p-4 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200 text-sm">
+                            <template x-for="doc in filteredDocuments" :key="doc.document_id">
+                                <tr class="hover:bg-gray-50 transition">
+                                    <td class="p-4 font-medium text-gray-900 flex items-center space-x-2 truncate">
+                                        <span>📄</span>
+                                        <span x-text="doc.filename" class="truncate"></span>
+                                    </td>
+                                    <td class="p-4 text-gray-500" x-text="doc.content_type"></td>
+                                    <td class="p-4 text-gray-500" x-text="(doc.file_size / 1024).toFixed(1) + ' KB'"></td>
+                                    <td class="p-4 text-gray-500" x-text="doc.total_pages"></td>
+                                    <td class="p-4 text-gray-500" x-text="doc.created_at ? new Date(doc.created_at).toLocaleString() : '—'"></td>
+                                    <td class="p-4 text-right space-x-2">
+                                        <button @click="previewDocument(doc.document_id)" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-lg text-xs font-medium transition" aria-label="Preview document page">Preview</button>
+                                        <button @click="deleteDocumentSafely(doc.document_id, doc.filename)" class="bg-red-50 hover:bg-red-100 text-red-700 px-3 py-1.5 rounded-lg text-xs font-medium transition" aria-label="Delete document and all indexes">Delete</button>
+                                    </td>
+                                </tr>
+                            </template>
+                            <template x-if="documents.length === 0">
+                                <tr>
+                                    <td colspan="6" class="p-8 text-center text-gray-400">No documents ingested yet.</td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 3: Settings -->
+        <div x-show="activeTab === 'settings'" x-cloak class="flex-1 p-8 overflow-y-auto bg-gray-50">
+            <div class="max-w-xl mx-auto space-y-6 bg-white p-8 rounded-2xl border border-gray-200 shadow-sm">
+                <h2 class="text-xl font-bold text-gray-900">Retrieval & RAG Settings</h2>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Top K Chunks (<span x-text="settings.top_k"></span>)</label>
+                        <input type="range" x-model.number="settings.top_k" min="1" max="20" class="w-full mt-1 accent-indigo-600">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Chain-of-Thought Reasoning</label>
+                        <input type="checkbox" x-model="settings.use_chain_of_thought" class="h-5 w-5 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500 mt-1">
+                        <p class="text-xs text-gray-400 mt-1">Instructs LLM to reason step-by-step over evidence.</p>
+                    </div>
+                    <p class="text-xs text-gray-400 italic">RAGFlowX uses verified dense vector retrieval and claim verification.</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Citation Modal -->
+    <div x-show="citationModal.open" x-cloak class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl" @click.away="citationModal.open = false">
+            <div class="flex justify-between items-center border-b pb-3">
+                <h3 class="font-bold text-lg text-gray-900 flex items-center space-x-2">
+                    <span>📄</span>
+                    <span x-text="citationModal.filename"></span>
+                </h3>
+                <button @click="citationModal.open = false" class="text-gray-400 hover:text-gray-600" aria-label="Close citation modal">✕</button>
+            </div>
+            <div class="space-y-3 text-sm">
+                <p class="text-gray-500">Page number: <span class="font-semibold text-gray-800" x-text="citationModal.page_number"></span></p>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-400 uppercase mb-1">Retrieved Source Passage</label>
+                    <div class="bg-gray-50 p-4 rounded-xl border border-gray-200 font-mono text-xs text-gray-700 max-h-60 overflow-y-auto whitespace-pre-wrap" x-text="citationModal.text"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Document Preview Modal -->
+    <div x-show="previewModal.open" x-cloak class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-6 z-50">
+        <div class="bg-white rounded-2xl max-w-3xl w-full p-6 space-y-4 shadow-2xl max-h-[85vh] flex flex-col" @click.away="previewModal.open = false">
+            <div class="flex justify-between items-center border-b pb-3 flex-shrink-0">
+                <div>
+                    <h3 class="font-bold text-lg text-gray-900" x-text="previewModal.filename"></h3>
+                    <p class="text-xs text-gray-500" x-text="'Size: ' + (previewModal.file_size / 1024).toFixed(1) + ' KB | Pages: ' + previewModal.pages.length"></p>
+                </div>
+                <button @click="previewModal.open = false" class="text-gray-400 hover:text-gray-600 text-lg" aria-label="Close preview modal">✕</button>
+            </div>
+            <div class="flex-1 overflow-y-auto space-y-4 pr-2">
+                <template x-for="page in previewModal.pages" :key="page.page_number">
+                    <div class="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-2">
+                        <div class="flex justify-between items-center text-xs font-semibold text-indigo-600">
+                            <span>Page <span x-text="page.page_number"></span></span>
+                            <span class="text-gray-400" x-text="page.character_count + ' chars'"></span>
+                        </div>
+                        <div class="text-xs font-mono text-gray-800 whitespace-pre-wrap bg-white p-3 rounded-lg border border-gray-100" x-text="page.text"></div>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
