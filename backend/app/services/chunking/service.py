@@ -57,6 +57,12 @@ class ChunkingService:
                 generated_chunks.append(chunk_obj)
                 global_chunk_index += 1
 
+        if not generated_chunks:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Could not extract any text chunks from document '{meta.filename}'. The document may be empty or contain no selectable text."
+            )
+
         self.chk_store.save_chunks(document_id, generated_chunks)
         return generated_chunks
 
