@@ -1,0 +1,62 @@
+{
+  "name": "ragflowx-gold-eval",
+  "version": "1.0",
+  "description": "Hand-built gold evaluation dataset for RAGFlowX validating dense search, BM25, hybrid retrieval, reranking, and verification.",
+  "documents": [
+    {
+      "filename": "quantum_computing.txt",
+      "content": "Quantum computing is a rapidly-emerging technology that harnesses the laws of quantum mechanics to solve problems too complex for classical computers. Today, IBM Quantum System Two is a prominent quantum computing platform utilizing superconducting qubits. Quantum error correction is critical because qubits are extremely sensitive to environmental noise, decoherence, and operational errors. Shor's algorithm and Grover's algorithm are two foundational quantum algorithms designed for prime factorization and unstructured database search respectively."
+    },
+    {
+      "filename": "neural_networks.txt",
+      "content": "Deep neural networks are composed of multiple layers of artificial neurons or nodes. Activation functions such as ReLU, GeLU, and Sigmoid introduce non-linearity into the network, enabling them to learn complex patterns. Backpropagation is the primary algorithm used to train neural networks by computing gradients of the loss function with respect to the weights. Overfitting occurs when a model learns the training data too well, memorizing noise rather than generalizable patterns."
+    }
+  ],
+  "items": [
+    {
+      "id": "q1_factual",
+      "question": "What prominent quantum computing platform utilizes superconducting qubits?",
+      "gold_answer": "IBM Quantum System Two",
+      "document_filename": "quantum_computing.txt",
+      "answerable": true,
+      "split": "dev",
+      "tags": ["factual", "dense"]
+    },
+    {
+      "id": "q2_keyword",
+      "question": "What is Shor's algorithm designed for?",
+      "gold_answer": "prime factorization",
+      "document_filename": "quantum_computing.txt",
+      "answerable": true,
+      "split": "dev",
+      "tags": ["keyword", "bm25"]
+    },
+    {
+      "id": "q3_semantic",
+      "question": "Why is quantum error correction essential for quantum machines?",
+      "gold_answer": "because qubits are extremely sensitive to environmental noise, decoherence, and operational errors",
+      "document_filename": "quantum_computing.txt",
+      "answerable": true,
+      "split": "test",
+      "tags": ["semantic", "hybrid"]
+    },
+    {
+      "id": "q4_neural",
+      "question": "What algorithm is primarily used to train neural networks by computing gradients?",
+      "gold_answer": "Backpropagation",
+      "document_filename": "neural_networks.txt",
+      "answerable": true,
+      "split": "dev",
+      "tags": ["factual", "dense"]
+    },
+    {
+      "id": "q5_unanswerable",
+      "question": "What is the capital city of Australia?",
+      "gold_answer": "I am sorry, but the provided documents do not contain information about the capital city of Australia.",
+      "document_filename": "quantum_computing.txt",
+      "answerable": false,
+      "split": "test",
+      "tags": ["unanswerable", "abstention"]
+    }
+  ]
+}

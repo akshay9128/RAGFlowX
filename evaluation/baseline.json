@@ -1,0 +1,12 @@
+{
+  "baseline_run_id": "baseline_v1",
+  "dataset_name": "ragflowx-gold-eval",
+  "aggregate_metrics": {
+    "mean_mrr": 0.8500,
+    "mean_precision_at_3": 0.7500,
+    "mean_recall_at_3": 0.8000,
+    "mean_groundedness": 0.9000,
+    "mean_token_f1": 0.7500,
+    "exact_match_rate": 0.6000
+  }
+}

@@ -1,0 +1,5 @@
+{
+  "max_regression_tolerance": 0.05,
+  "required_min_mrr": 0.70,
+  "required_min_groundedness": 0.80
+}
