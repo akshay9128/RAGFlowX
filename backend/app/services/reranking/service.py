@@ -38,13 +38,6 @@ class RerankService:
         for rank, (orig_idx, score) in enumerate(reranked_pairs, start=1):
             if orig_idx < len(results):
                 original = results[orig_idx]
-                updated_metadata = original.metadata or {}
-                updated_metadata.update({
-                    "rerank_score": score,
-                    "original_rank": orig_idx + 1,
-                    "rerank_rank": rank
-                })
-
                 reranked_results.append(
                     SearchResult(
                         chunk_id=original.chunk_id,
@@ -54,8 +47,7 @@ class RerankService:
                         chunk_index=original.chunk_index,
                         text=original.text,
                         score=score,
-                        source=original.source,
-                        metadata=updated_metadata
+                        source=original.source
                     )
                 )
 
