@@ -7,6 +7,7 @@ from backend.app.schemas.document import (
 )
 from backend.app.services.ingestion.service import ingestion_service
 from backend.app.database.document_store import document_store
+from backend.app.core.validation import validate_id
 
 router = APIRouter(prefix="/documents", tags=["Documents"])
 
@@ -60,6 +61,7 @@ async def list_documents():
 )
 async def get_document(document_id: str):
     """Retrieves metadata and page-level extracted text for a specific document ID."""
+    validate_id(document_id, "Document ID")
     doc = document_store.get_document(document_id)
     if not doc:
         raise HTTPException(
@@ -79,6 +81,7 @@ async def get_document(document_id: str):
 )
 async def delete_document(document_id: str):
     """Deletes an ingested document and its raw storage file."""
+    validate_id(document_id, "Document ID")
     deleted = document_store.delete_document(document_id)
     if not deleted:
         raise HTTPException(

@@ -5,8 +5,16 @@ from fastapi import Request, status
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
+from backend.app.config import settings
 
 logger = logging.getLogger(__name__)
+
+def add_security_headers(headers: dict):
+    if settings.SECURITY_HEADERS_ENABLED:
+        headers["X-Content-Type-Options"] = "nosniff"
+        headers["X-Frame-Options"] = "DENY"
+        headers["X-XSS-Protection"] = "1; mode=block"
+        headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
 
 async def request_tracing_middleware(request: Request, call_next):
     request_id = request.headers.get("X-Request-ID", str(uuid.uuid4()))
@@ -18,10 +26,13 @@ async def request_tracing_middleware(request: Request, call_next):
         duration = time.time() - start_time
         response.headers["X-Request-ID"] = request_id
         response.headers["X-Process-Time"] = f"{duration:.4f}"
+        add_security_headers(response.headers)
         return response
     except Exception as exc:
         duration = time.time() - start_time
         logger.exception(f"Unhandled exception during request {request_id}: {exc}")
+        headers = {"X-Request-ID": request_id}
+        add_security_headers(headers)
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             content={
@@ -33,13 +44,15 @@ async def request_tracing_middleware(request: Request, call_next):
                     "request_id": request_id
                 }
             },
-            headers={"X-Request-ID": request_id}
+            headers=headers
         )
 
 def register_exception_handlers(app):
     @app.exception_handler(RequestValidationError)
     async def validation_exception_handler(request: Request, exc: RequestValidationError):
         request_id = getattr(request.state, "request_id", str(uuid.uuid4()))
+        headers = {"X-Request-ID": request_id}
+        add_security_headers(headers)
         return JSONResponse(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             content={
@@ -51,7 +64,7 @@ def register_exception_handlers(app):
                     "request_id": request_id
                 }
             },
-            headers={"X-Request-ID": request_id}
+            headers=headers
         )
 
     @app.exception_handler(StarletteHTTPException)
@@ -64,6 +77,8 @@ def register_exception_handlers(app):
             422: "UNPROCESSABLE_ENTITY",
         }
         error_code = code_map.get(exc.status_code, "HTTP_ERROR")
+        headers = {"X-Request-ID": request_id}
+        add_security_headers(headers)
         return JSONResponse(
             status_code=exc.status_code,
             content={
@@ -75,5 +90,5 @@ def register_exception_handlers(app):
                     "request_id": request_id
                 }
             },
-            headers={"X-Request-ID": request_id}
+            headers=headers
         )

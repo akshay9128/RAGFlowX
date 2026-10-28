@@ -10,6 +10,7 @@ from backend.app.schemas.session import (
 )
 from backend.app.database.session_store import session_store
 from backend.app.services.chat.service import chat_service
+from backend.app.core.validation import validate_id
 
 router = APIRouter(prefix="/sessions", tags=["Chat Sessions & History"])
 
@@ -50,6 +51,7 @@ async def list_sessions():
 )
 async def get_session(session_id: str):
     """Retrieves full session details including all conversation turns."""
+    validate_id(session_id, "Session ID")
     session = session_store.get_session(session_id)
     if not session:
         raise HTTPException(
@@ -66,6 +68,7 @@ async def get_session(session_id: str):
 )
 async def delete_session(session_id: str):
     """Deletes a chat session and its persisted history."""
+    validate_id(session_id, "Session ID")
     success = session_store.delete_session(session_id)
     if not success:
         raise HTTPException(
