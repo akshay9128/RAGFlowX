@@ -75,10 +75,13 @@ def register_exception_handlers(app):
             404: "NOT_FOUND",
             405: "METHOD_NOT_ALLOWED",
             422: "UNPROCESSABLE_ENTITY",
+            429: "TOO_MANY_REQUESTS",
         }
         error_code = code_map.get(exc.status_code, "HTTP_ERROR")
         headers = {"X-Request-ID": request_id}
         add_security_headers(headers)
+        if exc.headers:
+            headers.update(exc.headers)
         return JSONResponse(
             status_code=exc.status_code,
             content={

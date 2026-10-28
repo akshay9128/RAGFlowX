@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from backend.app.api.routes import health, documents, chunks, embeddings, vector_store, rag, bm25, hybrid, rerank, sessions, pipeline
+from backend.app.api.routes import health, documents, chunks, embeddings, vector_store, rag, bm25, hybrid, rerank, sessions, pipeline, api_keys
 
 api_router = APIRouter()
 api_router.include_router(health.router)
@@ -13,3 +13,4 @@ api_router.include_router(hybrid.router)
 api_router.include_router(rerank.router)
 api_router.include_router(sessions.router)
 api_router.include_router(pipeline.router)
+api_router.include_router(api_keys.router)
