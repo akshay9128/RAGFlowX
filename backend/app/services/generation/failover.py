@@ -46,12 +46,12 @@ class FailoverLLMProvider(BaseLLMProvider):
             return MockLLMProvider(model_name="mock-grounded-llm")
         raise ValueError(f"Unsupported failover provider: '{provider_type}'")
 
-    def generate(self, prompt: str, system_instruction: Optional[str] = None) -> str:
+    def generate(self, prompt: str, system_instruction: Optional[str] = None, use_chain_of_thought: bool = False) -> str:
         last_error: Optional[str] = None
         for provider_type in self.provider_order:
             try:
                 provider = self._instantiate(provider_type)
-                result = provider.generate(prompt, system_instruction)
+                result = provider.generate(prompt, system_instruction, use_chain_of_thought=use_chain_of_thought)
                 logger.info(
                     "FailoverLLMProvider succeeded with provider '%s'", provider_type
                 )

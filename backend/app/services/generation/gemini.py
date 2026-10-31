@@ -20,17 +20,22 @@ class GeminiLLMProvider(BaseLLMProvider):
     def model_name(self) -> str:
         return self._model_name
 
-    def generate(self, prompt: str, system_instruction: Optional[str] = None) -> str:
+    def generate(self, prompt: str, system_instruction: Optional[str] = None, use_chain_of_thought: bool = False) -> str:
         if not self._api_key:
             raise ValueError("GEMINI_API_KEY environment variable is not configured.")
 
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{self._model_name}:generateContent?key={self._api_key}"
 
+        effective_system = system_instruction
+        if use_chain_of_thought:
+            cot_prefix = "Think carefully and explain your reasoning step by step before arriving at the final grounded answer."
+            effective_system = f"{system_instruction}\n{cot_prefix}" if system_instruction else cot_prefix
+
         contents = []
-        if system_instruction:
+        if effective_system:
             contents.append({
                 "role": "user",
-                "parts": [{"text": f"SYSTEM INSTRUCTION: {system_instruction}\n\n{prompt}"}]
+                "parts": [{"text": f"SYSTEM INSTRUCTION: {effective_system}\n\n{prompt}"}]
             })
         else:
             contents.append({

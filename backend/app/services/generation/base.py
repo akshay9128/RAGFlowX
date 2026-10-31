@@ -18,6 +18,7 @@ class BaseLLMProvider(ABC):
         pass
 
     @abstractmethod
-    def generate(self, prompt: str, system_instruction: Optional[str] = None) -> str:
+    def generate(self, prompt: str, system_instruction: Optional[str] = None,
+                 use_chain_of_thought: bool = False) -> str:
         """Generates a text completion response given prompt and optional system instructions."""
         pass

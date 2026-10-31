@@ -1,7 +1,7 @@
 import time
 import random
 import logging
-from typing import Callable, Any, Optional
+from typing import Callable, Any, Optional, Dict
 from backend.app.config import settings
 
 logger = logging.getLogger(__name__)

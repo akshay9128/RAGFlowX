@@ -19,14 +19,19 @@ class OpenAILLMProvider(BaseLLMProvider):
     def model_name(self) -> str:
         return self._model_name
 
-    def generate(self, prompt: str, system_instruction: Optional[str] = None) -> str:
+    def generate(self, prompt: str, system_instruction: Optional[str] = None, use_chain_of_thought: bool = False) -> str:
         """Generates a text completion response via OpenAI Chat Completions API."""
         if not self._api_key:
             raise ValueError("OPENAI_API_KEY environment variable is not configured.")
 
+        effective_system = system_instruction
+        if use_chain_of_thought:
+            cot_prefix = "Think carefully and explain your reasoning step by step before arriving at the final grounded answer."
+            effective_system = f"{system_instruction}\n{cot_prefix}" if system_instruction else cot_prefix
+
         messages = []
-        if system_instruction:
-            messages.append({"role": "system", "content": system_instruction})
+        if effective_system:
+            messages.append({"role": "system", "content": effective_system})
         messages.append({"role": "user", "content": prompt})
 
         payload = {
